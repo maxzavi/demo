@@ -32,7 +32,7 @@ public class DemoApplication implements CommandLineRunner {
 	public void run(String... args) throws Exception {
 		var datos = getData();
 		log.info(datos.size());
-		saveDB(datos);
+		saveDB1(datos);
 	}
 
 	@Autowired
@@ -55,40 +55,38 @@ public class DemoApplication implements CommandLineRunner {
 		});	
 		return temp;
 	}
+	
+	private void saveDB1(List<Asn> asns){
+		StringBuilder sb = new StringBuilder();
+		boolean firstRow=true;
+		for (Asn t : asns) {
+			if (firstRow){
+				firstRow=false;
+			}else{
+				sb.append(" union all ");
+			}			
+			sb.append("select '" + t.shipment_id() + "'");
+			sb.append(",'" + t.facility_key() +"'");
+			sb.append(",'" + t.shipment_nbr() +"'");
+			sb.append(",'" + t.create_ts().substring(0,19) +"'");
+			sb.append(",'" + t.mod_ts().substring(0,19) +"'");
+			sb.append("," + t.shipment_type_id() );
+			sb.append(",'" + t.shipment_type_key() +"' ");
+		}
 
-	private void saveDB(List<Asn> asns){
 		String query = """
-			INSERT INTO WmsShipmentMainApi
+			insert into WmsShipmentMainApi
 			(shipment_id, facility_key, shipment_nbr, create_ts, mod_ts, shipment_type_id, shipment_type_key)
-			VALUES(?, ?, ?, ?, ?, ?, ?)
 				""";
-		try{ 
+		query= query + sb.toString();
+		try(
             Connection con = jdbcTemplate.getDataSource().getConnection();
             PreparedStatement pst = con.prepareStatement(query);
-        
-			//con.setAutoCommit(false);
-			for (Asn t : asns) {
-				pst.setString(1, t.shipment_id());
-				pst.setString(2, t.facility_key());
-				pst.setString(3, t.shipment_nbr());
-				pst.setString(4, t.create_ts().substring(0,20));
-				pst.setString(5, t.mod_ts().substring(0,20));
-				pst.setInt(6, t.shipment_type_id());
-				pst.setString(7, t.shipment_type_key());
-
-				pst.addBatch();
-			
-			}
-			pst.executeBatch();
-
-			pst.close();
-			con.close();
-			//con.commit();
+		){ 
+			pst.executeUpdate();
         } catch (Exception e) {
             log.error(e);
             //throw e;
         }
 	}
-	
-
 }
